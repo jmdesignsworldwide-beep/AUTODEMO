@@ -4,13 +4,23 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/env'
 
 type CookieAEscribir = { name: string; value: string; options: CookieOptions }
 
-// Refresca la sesión en cada petición y la mantiene fresca en las cookies.
-// No decide permisos aquí (eso es el RLS y la validación por ruta); solo
-// mantiene viva/renovada la sesión del usuario.
+// Rutas que NO exigen sesión vigente (para no crear un bucle de redirección).
+const RUTAS_LIBRES = ['/login', '/vencida', '/sin-acceso', '/']
+
+function decodificarVence(token: string): number | null {
+  try {
+    const p = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString())
+    return p.vence_at ? new Date(p.vence_at).getTime() : null
+  } catch {
+    return null
+  }
+}
+
+// Refresca la sesión y, además, ENFORZA LA VIGENCIA en el borde: una cuenta
+// demo vencida se manda a /vencida aquí (middleware) — la segunda muralla es
+// el RLS (jwt_vigente), que la deniega a nivel de datos aunque salte esto.
 export async function actualizarSesion(request: NextRequest) {
   let response = NextResponse.next({ request })
-
-  // Si Supabase no está configurado, no interferir.
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return response
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -28,8 +38,28 @@ export async function actualizarSesion(request: NextRequest) {
     },
   })
 
-  // Refresca el token si hace falta.
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const vence = session?.access_token ? decodificarVence(session.access_token) : null
+    const vencida = vence !== null && vence <= Date.now()
+    const ruta = request.nextUrl.pathname
+    const esLibre = RUTAS_LIBRES.includes(ruta)
+
+    if (vencida && !esLibre) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/vencida'
+      const redir = NextResponse.redirect(url)
+      // Conservar cookies de sesión refrescadas en la redirección.
+      response.cookies.getAll().forEach((c) => redir.cookies.set(c))
+      return redir
+    }
+  }
 
   return response
 }
