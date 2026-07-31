@@ -6,6 +6,26 @@
 
 ---
 
+## 🚨 Lo primero de todo — el RLS es la ÚNICA muralla, no una capa adicional
+
+Supabase concede permisos a `anon` y `authenticated` sobre **toda tabla nueva
+del esquema `public`, por defecto** — sin que nadie lo pida. Y `anon` es la
+**llave pública**: viaja en el navegador de cualquiera que abra la aplicación.
+
+Por lo tanto, el **RLS no es una capa adicional de seguridad: es la ÚNICA.** Una
+tabla sin RLS en `public` está **abierta al mundo desde el instante en que se
+crea**, y la aplicación se ve perfectamente normal — no se nota mirando la app.
+
+- **RLS + FORCE se activan en la MISMA migración que crea la tabla.** Sin
+  excepción, en ninguna tanda, por ningún motivo.
+- Además, **se revocan los permisos que la tabla no necesite de verdad** (empezando
+  por `anon`, y por `TRUNCATE`/`TRIGGER`/`REFERENCES` de `authenticated`, que no
+  pasan por RLS) — defensa en profundidad **sobre** el RLS, nunca **en lugar** del RLS.
+- En el **reporte de cierre de cada tanda** va una línea por cada tabla nueva
+  confirmando **RLS + FORCE** activos.
+
+---
+
 ## ⛔ Regla permanente — `user_metadata` es campo del atacante
 
 `user_metadata` es un campo **controlado por el usuario**. Cualquiera puede
@@ -161,6 +181,36 @@ quede muda sin que nos enteremos.
 
 ---
 
+## 🚫 Prohibidos los permisos en bloque (regla permanente)
+
+Una migración de la Tanda 3 destapó que casi todas las tablas de negocio
+arrastraban el `GRANT ALL` que Supabase da por defecto a `anon`/`authenticated`
+al crear una tabla. La RLS bloqueaba las filas, pero el privilegio de tabla
+estaba abierto de más — y `TRUNCATE` **no pasa por RLS**. El riesgo de fondo no
+es solo ese: es que un permiso en bloque **barre lo que ya existía sin avisar**.
+
+**La regla, sin excepción:**
+
+- **Nunca** `GRANT ... ON ALL TABLES IN SCHEMA public`.
+- **Nunca** `ALTER DEFAULT PRIVILEGES` sin acotar.
+- **Nunca** un `GRANT` a `anon` o `authenticated` sobre un esquema completo.
+- Todo `GRANT`/`REVOKE` es **explícito, tabla por tabla y rol por rol**, y solo
+  sobre las tablas que **esa** migración está creando.
+- **Ninguna migración puede modificar los permisos de tablas creadas en tandas
+  anteriores.** Si hace falta endurecerlos, se hace en una **migración aparte,
+  declarada y justificada** (ejemplo: `0004_endurecimiento_grants.sql`).
+
+> Un `foreach` sobre una **lista explícita y enumerada** de tablas SÍ está
+> permitido — nombra cada tabla, no es `ON ALL TABLES`.
+
+**Recurrencia:** como Supabase seguirá haciendo `GRANT ALL` por defecto al crear
+cada tabla nueva, el checklist de abajo exige **revocar `anon` explícitamente en
+la migración que crea la tabla** (y quitar a `authenticated` lo que no pasa por
+RLS: `TRUNCATE`/`TRIGGER`/`REFERENCES`). No se combate con un default-privilege
+global — se combate tabla por tabla, donde se ve.
+
+---
+
 ## Excepción explícita y TEMPORAL de la Tanda 0
 
 En la **Tanda 0 no existe autenticación** todavía (llega en la Tanda 2). Por eso,
@@ -195,6 +245,7 @@ Esto es una **deuda técnica consciente y acotada**, marcada en el código con:
 - [ ] ¿Existen políticas por rol y por `sucursal_id` que evalúan el JWT real?
 - [ ] ¿El CRUD del módulo usa la **sesión del usuario**, no `service_role`?
 - [ ] ¿`service_role` aparece solo en Capa B / procesos de sistema?
+- [ ] ¿Se **revocó `anon`** de la tabla nueva y se le quitó a `authenticated` lo que NO pasa por RLS (`TRUNCATE`/`TRIGGER`/`REFERENCES`)? Supabase hace `GRANT ALL` por defecto a `anon`/`authenticated`; RLS bloquea las filas, pero el privilegio de tabla se retira igual (mínimo privilegio). Ver `0004_endurecimiento_grants.sql`.
 - [ ] ¿Toda función `SECURITY DEFINER` nueva se revocó de `PUBLIC`, `anon` y `authenticated`, con `GRANT` solo al rol mínimo? (Pilar 9)
 - [ ] ¿Se probó por **RPC directo** con la anon key —sin sesión— que las funciones reservadas rebotan por permisos?
 - [ ] ¿Se probó por **URL directa** con cada rol lo que no le toca?
