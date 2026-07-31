@@ -9,14 +9,10 @@ import { SUPABASE_URL, getServiceRoleKey } from '@/lib/env'
 //
 // ⚠️ PATRÓN DE ACCESO — ver docs/PATRON-DE-ACCESO.md
 // service_role ATRAVIESA la RLS. Su uso está RESERVADO para lo privilegiado:
-// súper-admin de la Capa B, tareas administrativas y procesos de sistema.
-// NUNCA para el CRUD normal de un módulo. El CRUD de módulo (Tanda 2+) usa la
-// sesión del usuario real y deja que la RLS proteja.
-//
-// TEMPORAL TANDA 0 — reemplazar en Tanda 2 por sesión de usuario.
-// En la Tanda 0 no hay autenticación todavía, así que el humo de vida
-// (`sucursal`) escribe por aquí. Es deuda técnica consciente y acotada:
-// se retira cuando la Tanda 2 traiga auth + políticas RLS por rol y sucursal.
+// súper-admin de la Capa B (crear/administrar cuentas demo), tareas
+// administrativas y procesos de sistema (siembra, jobs).
+// NUNCA para el CRUD normal de un módulo — eso corre con la sesión del usuario
+// y lo protege el RLS. Desde la Tanda 2 el CRUD ya no pasa por aquí.
 
 let cliente: SupabaseClient | null = null
 

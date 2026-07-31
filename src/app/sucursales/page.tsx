@@ -2,16 +2,16 @@ import { Database, AlertTriangle } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { supabaseConfigurado } from '@/lib/env'
+import { requireSesion, ETIQUETA_ROL } from '@/lib/auth'
 import { listarSucursales } from './acciones'
 import { FormularioSucursal } from './formulario'
 import { ListaSucursales } from './lista'
 import type { Sucursal } from '@/lib/tipos'
 
-// La prueba de vida de la Tanda 0 vive aquí; la Tanda 1 la reviste con el
-// sistema de diseño (tokens + shell). El acceso sigue por Server Actions.
 export const dynamic = 'force-dynamic'
 
 export default async function PaginaSucursales() {
+  const sesion = await requireSesion()
   const configurado = supabaseConfigurado()
 
   let sucursales: Sucursal[] = []
@@ -26,7 +26,14 @@ export default async function PaginaSucursales() {
   }
 
   return (
-    <AppShell titulo="Sucursales">
+    <AppShell
+      titulo="Sucursales"
+      usuario={{
+        nombre: sesion.user.email ?? 'Usuario',
+        rol: sesion.rol ? ETIQUETA_ROL[sesion.rol] : '—',
+        esSuperadmin: sesion.rol === 'superadmin',
+      }}
+    >
       <div className="mx-auto max-w-4xl">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-texto">Sucursales</h2>
