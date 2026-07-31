@@ -1,0 +1,43 @@
+# dependencias
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# producción
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# depuración
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# variables de entorno (NUNCA se suben — Fort Knox pilar 7)
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# secretos / PAT (jamás en el repo)
+*.pat
+secrets.*

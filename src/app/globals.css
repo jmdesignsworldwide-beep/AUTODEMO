@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: #12151A;
+  color: #C3C9D2;
+  /* Textura sutil de carbono sobre el grafito profundo */
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(255, 138, 43, 0.06), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(139, 149, 165, 0.05), transparent 45%);
+  background-attachment: fixed;
+}
+
+/* Scrollbar en tono grafito para no romper el tema oscuro premium */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #12151A;
+}
+::-webkit-scrollbar-thumb {
+  background: #272D37;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF8A2B;
+}
