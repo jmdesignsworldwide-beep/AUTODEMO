@@ -195,6 +195,7 @@ Esto es una **deuda técnica consciente y acotada**, marcada en el código con:
 - [ ] ¿Existen políticas por rol y por `sucursal_id` que evalúan el JWT real?
 - [ ] ¿El CRUD del módulo usa la **sesión del usuario**, no `service_role`?
 - [ ] ¿`service_role` aparece solo en Capa B / procesos de sistema?
+- [ ] ¿Se **revocó `anon`** de la tabla nueva y se le quitó a `authenticated` lo que NO pasa por RLS (`TRUNCATE`/`TRIGGER`/`REFERENCES`)? Supabase hace `GRANT ALL` por defecto a `anon`/`authenticated`; RLS bloquea las filas, pero el privilegio de tabla se retira igual (mínimo privilegio). Ver `0004_endurecimiento_grants.sql`.
 - [ ] ¿Toda función `SECURITY DEFINER` nueva se revocó de `PUBLIC`, `anon` y `authenticated`, con `GRANT` solo al rol mínimo? (Pilar 9)
 - [ ] ¿Se probó por **RPC directo** con la anon key —sin sesión— que las funciones reservadas rebotan por permisos?
 - [ ] ¿Se probó por **URL directa** con cada rol lo que no le toca?
