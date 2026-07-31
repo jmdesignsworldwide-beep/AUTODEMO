@@ -39,10 +39,13 @@ alter table public.dispositivo
 -- ---------------------------------------------------------------------------
 
 -- 3a) audit_inmutable: search_path fijo (lint function_search_path_mutable).
+--     Es función de TRIGGER; nadie la llama por RPC. El trigger la dispara sin
+--     necesitar EXECUTE del rol, así que se revoca de todos (higiene, pilar 9).
 create or replace function public.audit_inmutable() returns trigger
   language plpgsql
   set search_path = ''
   as $$ begin raise exception 'audit_log es inmutable'; end; $$;
+revoke execute on function public.audit_inmutable() from public, anon, authenticated;
 
 -- 3b) verificar_pin: SOLO la llama el servidor con service_role (login por PIN
 --     es pre-sesión). Se REVOCA de authenticated (quita el lint de SECURITY
@@ -142,6 +145,17 @@ end;
 $$;
 revoke execute on function public.fijar_pin(uuid, text) from public, anon, authenticated;
 grant  execute on function public.fijar_pin(uuid, text) to service_role;
+
+-- 3d) HELPERS DE CLAIMS (jwt_rol/jwt_sucursal/jwt_vigente): son SECURITY INVOKER
+--     (leen el JWT del propio llamante, no escalan), pero en 0001 se hizo
+--     grant a authenticated SIN revocar el EXECUTE de PUBLIC por defecto. El
+--     linter no lo señala porque no son DEFINER, pero el pilar 9 exige cerrarlo:
+--     se revoca de PUBLIC y anon; se conserva authenticated porque las políticas
+--     RLS los invocan en el contexto del usuario con sesión.
+revoke execute on function public.jwt_rol()      from public, anon;
+revoke execute on function public.jwt_sucursal() from public, anon;
+revoke execute on function public.jwt_vigente()  from public, anon;
+grant  execute on function public.jwt_rol(), public.jwt_sucursal(), public.jwt_vigente() to authenticated;
 
 -- Nota: el lint auth_leaked_password_protection (HaveIBeenPwned) NO es SQL —
 -- se activa por config de Auth vía Management API en la misma corrida.

@@ -80,6 +80,53 @@ El CRUD normal, desde la Tanda 2 en adelante, **usa la sesión del usuario real*
 
 ---
 
+## 🧱 Pilar 9 — toda función `SECURITY DEFINER` se revoca de `PUBLIC`, `anon` y `authenticated`
+
+Una función `SECURITY DEFINER` corre con los privilegios de **quien la creó**, no
+de quien la llama. Si además conserva el `EXECUTE` que Postgres concede a
+`PUBLIC` por defecto, **cualquiera con la anon key** —que es pública y viaja en
+el navegador de todo el que abra el demo— puede invocarla directo por RPC contra
+la API REST, **saltándose la aplicación entera**: el endpoint de servidor, el
+throttle, el dispositivo autorizado, los candados de rol. Todo.
+
+> El Security Advisor **no ve este hueco completo**: su lint
+> `authenticated_security_definer_function_executable` mira **solo `authenticated`**.
+> No dice nada de `anon`. Una función pre-sesión (como `verificar_pin`, que se
+> llama cuando el usuario todavía es `anon`) puede salir "limpia" en el segundo
+> pase con el hueco de `anon` abierto de par en par. Por eso el lint **no** es la
+> prueba: la prueba es revocar de los tres y llamarla directo por RPC.
+
+**La regla, permanente y sin excepción:**
+
+```sql
+REVOKE EXECUTE ON FUNCTION <función> FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION <función> FROM anon;
+REVOKE EXECUTE ON FUNCTION <función> FROM authenticated;
+-- y luego, SOLO al rol que de verdad la necesita:
+GRANT  EXECUTE ON FUNCTION <función> TO <rol_mínimo>;
+```
+
+- `<rol_mínimo>` es el más bajo que la función necesita de verdad:
+  `service_role` (funciones que llama el servidor pre-sesión, como `verificar_pin`,
+  `fijar_pin`), `supabase_auth_admin` (el auth hook), o `authenticated` **solo**
+  cuando la llama un usuario con sesión (como `mi_estado_vigencia()` desde el
+  middleware — y aun así revocada de `PUBLIC` y `anon`, porque un usuario sin
+  sesión no tiene nada que consultar).
+- Aplica también, por higiene, a las funciones `SECURITY INVOKER` que arrastren
+  el `EXECUTE` de `PUBLIC` por defecto: se revoca de `PUBLIC`/`anon` y se concede
+  al rol que corresponda.
+
+**Verificación obligatoria** (no basta el segundo pase del Advisor): con la anon
+key y sin sesión, llamar la función por RPC directo → debe rebotar por permisos.
+Repetir con una sesión de rol no autorizado → también debe rebotar. Se guardan
+las respuestas crudas.
+
+> El linter es una ayuda, no el auditor. El auditor eres tú, leyendo la lista de
+> cada función `SECURITY DEFINER` con **quién puede ejecutarla** después de la
+> migración.
+
+---
+
 ## Excepción explícita y TEMPORAL de la Tanda 0
 
 En la **Tanda 0 no existe autenticación** todavía (llega en la Tanda 2). Por eso,
@@ -114,4 +161,6 @@ Esto es una **deuda técnica consciente y acotada**, marcada en el código con:
 - [ ] ¿Existen políticas por rol y por `sucursal_id` que evalúan el JWT real?
 - [ ] ¿El CRUD del módulo usa la **sesión del usuario**, no `service_role`?
 - [ ] ¿`service_role` aparece solo en Capa B / procesos de sistema?
+- [ ] ¿Toda función `SECURITY DEFINER` nueva se revocó de `PUBLIC`, `anon` y `authenticated`, con `GRANT` solo al rol mínimo? (Pilar 9)
+- [ ] ¿Se probó por **RPC directo** con la anon key —sin sesión— que las funciones reservadas rebotan por permisos?
 - [ ] ¿Se probó por **URL directa** con cada rol lo que no le toca?
