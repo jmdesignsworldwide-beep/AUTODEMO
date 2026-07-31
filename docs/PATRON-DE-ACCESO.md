@@ -127,6 +127,40 @@ las respuestas crudas.
 
 ---
 
+## 🐤 Canario del middleware — la protección puede quedar MUDA sin avisar
+
+En la Tanda 2 descubrimos que el `middleware.ts` estaba en la **raíz** del
+proyecto, pero como este repo usa carpeta **`src/`**, Next.js espera el
+middleware en **`src/middleware.ts`**. El de la raíz **nunca se registró** —y
+no lanzó ningún error—. Durante toda la tanda la enforcement del middleware
+(redirección a `/vencida`, la revocación instantánea) fue **código muerto**:
+solo la RLS estaba de pie. Peor: una prueba de verificación salió en **verde**
+certificando algo que **no existía**, porque el middleware apagado no deja rastro.
+
+> **El middleware puede dejar de ejecutarse por ubicación de archivo o por
+> configuración del matcher, sin lanzar ningún error.** Un falso-verde así es el
+> error más caro del proyecto: no deja rastro.
+
+**La defensa permanente — un canario:**
+
+1. El middleware escribe una cabecera propia en **toda** respuesta:
+   `x-jmauto-mw: 1` (ver `src/middleware.ts`).
+2. Una prueba de humo (`npm run smoke:mw` → `scripts/smoke-middleware.mjs`)
+   pide una **página protegida** y verifica que la cabecera esté presente.
+3. Si no está, el middleware **no está corriendo** y la prueba **falla
+   ruidosamente** (exit 1) con el diagnóstico.
+
+Está probado en ambos sentidos: con el middleware en `src/` **pasa**; con el
+middleware en la ubicación mala **revienta**. Ejecutar `smoke:mw` en cada tanda
+(y en CI) cierra para siempre la posibilidad de que una protección de middleware
+quede muda sin que nos enteremos.
+
+> Regla: **ninguna verificación de una protección de middleware se da por buena
+> sin que el canario esté verde.** El linter y las pruebas que "asumen" no bastan
+> — hay que probar que el middleware corre de verdad.
+
+---
+
 ## Excepción explícita y TEMPORAL de la Tanda 0
 
 En la **Tanda 0 no existe autenticación** todavía (llega en la Tanda 2). Por eso,

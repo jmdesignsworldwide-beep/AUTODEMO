@@ -2,7 +2,13 @@ import { type NextRequest } from 'next/server'
 import { actualizarSesion } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  return actualizarSesion(request)
+  const response = await actualizarSesion(request)
+  // CANARIO DEL MIDDLEWARE — si el middleware corre, esta cabecera SIEMPRE sale.
+  // Si un día desaparece de las respuestas, el middleware dejó de ejecutarse
+  // (por ubicación de archivo o por el matcher) y la prueba de humo lo grita.
+  // Ver docs/PATRON-DE-ACCESO.md · "Canario del middleware".
+  response.headers.set('x-jmauto-mw', '1')
+  return response
 }
 
 export const config = {
