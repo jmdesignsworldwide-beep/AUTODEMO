@@ -1,5 +1,12 @@
 'use server'
 
+// ⚠️ PATRÓN DE ACCESO — ver docs/PATRON-DE-ACCESO.md
+// Este módulo usa supabaseAdmin() (service_role) SOLO porque en la Tanda 0
+// todavía no hay autenticación. Es CRUD de módulo, así que NO es el patrón
+// definitivo: en la Tanda 2 se migra a la sesión del usuario real + RLS por
+// rol y sucursal. Cada uso queda marcado con:
+//   // TEMPORAL TANDA 0 — reemplazar en Tanda 2 por sesión de usuario.
+
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -45,6 +52,7 @@ export async function crearSucursal(
 
   const { nombre, direccion, telefono } = parsed.data
 
+  // TEMPORAL TANDA 0 — reemplazar en Tanda 2 por sesión de usuario.
   const { error } = await supabaseAdmin()
     .from('sucursal')
     .insert({
@@ -66,6 +74,7 @@ export async function crearSucursal(
 
 /** Lista las sucursales vivas (soft-delete: deleted_at IS NULL). */
 export async function listarSucursales(): Promise<Sucursal[]> {
+  // TEMPORAL TANDA 0 — reemplazar en Tanda 2 por sesión de usuario.
   const { data, error } = await supabaseAdmin()
     .from('sucursal')
     .select('id, nombre, direccion, telefono, activa, created_at, created_by, deleted_at')
@@ -80,6 +89,7 @@ export async function listarSucursales(): Promise<Sucursal[]> {
 
 /** Soft-delete: marca deleted_at, nunca borra físicamente. */
 export async function archivarSucursal(id: string): Promise<ResultadoAccion> {
+  // TEMPORAL TANDA 0 — reemplazar en Tanda 2 por sesión de usuario.
   const { error } = await supabaseAdmin()
     .from('sucursal')
     .update({ deleted_at: new Date().toISOString() })

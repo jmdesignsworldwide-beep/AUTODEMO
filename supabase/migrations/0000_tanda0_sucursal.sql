@@ -17,7 +17,7 @@ create table if not exists public.sucursal (
   telefono    text,
   activa      boolean     not null default true,
   created_at  timestamptz not null default now(),
-  created_by  uuid,        -- heredará el usuario autenticado en la Tanda 2
+  created_by  uuid,        -- nullable en Tanda 0 (no hay auth). Tanda 2: FK a auth.users(id).
   deleted_at  timestamptz  -- soft-delete: nunca se borra físicamente
 );
 
@@ -38,6 +38,11 @@ revoke all on public.sucursal from authenticated;
 
 -- SIN POLÍTICAS = deny-all. Ni anon ni authenticated pueden leer/escribir.
 -- Se pueden verificar por URL directa contra PostgREST: deben recibir vacío/negado.
+--
+-- PATRÓN DE ACCESO (ver docs/PATRON-DE-ACCESO.md): la RLS es la muralla
+-- PRINCIPAL. En la Tanda 2, con auth, aquí se escriben las políticas reales
+-- por rol y por sucursal_id (auth.uid()), y el CRUD deja de usar service_role.
+-- En la Tanda 0 el acceso es temporal vía service_role porque aún no hay auth.
 
 -- ---------------------------------------------------------------------------
 -- Índice para listar sucursales vivas de forma instantánea.
