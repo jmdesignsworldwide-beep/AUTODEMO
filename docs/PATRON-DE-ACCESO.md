@@ -6,6 +6,27 @@
 
 ---
 
+## ⛔ Regla permanente — `user_metadata` es campo del atacante
+
+`user_metadata` es un campo **controlado por el usuario**. Cualquiera puede
+escribir en el suyo desde la consola del navegador con `updateUser()`.
+
+**NUNCA se lee `user_metadata`** para ninguna decisión de autorización, de
+precio, de rol, de sucursal, de vigencia, ni de nada que tenga consecuencia.
+Sirve únicamente para **preferencias cosméticas del propio usuario**, como el
+tema oscuro o claro.
+
+Todo lo que importa vive en **`app_metadata`** —solo escribible por el
+servidor— o en la tabla **`perfil`**, protegida por RLS. El rol, la sucursal y
+la vigencia se leen del **JWT** (inyectados por el auth hook desde `perfil` y
+`cuenta_demo`), jamás de `user_metadata`.
+
+> El riesgo no es hoy: es la Tanda 9 o la 14, cuando alguien lea
+> `user.user_metadata.algo` para una decisión de negocio que resulte estar
+> controlada por el propio usuario. Por eso la regla es permanente.
+
+---
+
 ## La regla de las dos murallas
 
 El acceso a datos de JM AUTO se protege con **dos murallas**, en este orden de importancia:
