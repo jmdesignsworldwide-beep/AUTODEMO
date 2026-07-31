@@ -2,37 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
+/* ============================================================================
+   JM AUTO — SISTEMA DE TOKENS
+   Regla dura (Tanda 1): ningún componente conoce un color directo.
+   Todo consume TOKENS SEMÁNTICOS. Los valores viven en canales RGB
+   ("R G B") para que Tailwind pueda aplicar opacidad: rgb(var(--x) / alpha).
+
+   --acento es REASIGNABLE EN RUNTIME. Cuando cambia el giro activo, el
+   GiroProvider reescribe --acento (y --acento-texto) sobre :root, y
+   TODO el sistema muda de color al instante, sin tocar un solo componente.
+   Esto es lo que hace posible la Tanda 6 (la pantalla de venta).
+   ============================================================================ */
+
+@layer base {
+  :root {
+    /* ---- TEMA OSCURO (por defecto — el taller es un ambiente oscuro) ---- */
+    --superficie: 18 21 26; /* #12151A grafito profundo */
+    --superficie-elevada: 24 28 34; /* #181C22 */
+    --superficie-alta: 31 36 44; /* #1F242C */
+    --borde: 39 45 55; /* #272D37 */
+    --borde-suave: 31 36 44;
+    --texto: 195 201 210; /* #C3C9D2 */
+    --texto-suave: 139 149 165; /* #8B95A5 titanio */
+    --texto-tenue: 100 109 125;
+
+    /* Acento maestro = ámbar incandescente. Reasignable por giro. */
+    --acento: 255 138 43; /* #FF8A2B */
+    /* Texto SOBRE el acento — calculado por luminancia (ver giros.ts).
+       Para el ámbar maestro gana el casi-negro. El GiroProvider lo reasigna. */
+    --acento-texto: 17 20 26;
+
+    --exito: 52 199 123;
+    --alerta: 255 176 32;
+    --peligro: 244 90 90;
+
+    --sombra: 0 0 0;
+    --velo: 0 0 0; /* scrim de modales/drawers (tokenizado, no bg-black crudo) */
+    --radio: 0.9rem;
+  }
+
+  :root[data-theme='light'] {
+    /* ---- TEMA CLARO (completo, no un afterthought) ---- */
+    --superficie: 243 245 248; /* gris muy claro, no blanco puro */
+    --superficie-elevada: 255 255 255;
+    --superficie-alta: 233 237 242;
+    --borde: 210 216 224;
+    --borde-suave: 224 229 235;
+    --texto: 24 29 37; /* casi negro grafito */
+    --texto-suave: 88 98 114;
+    --texto-tenue: 130 139 153;
+
+    --acento: 224 112 22; /* ámbar levemente más profundo: contraste AA en claro */
+    --acento-texto: 255 255 255;
+
+    --exito: 20 145 88;
+    --alerta: 183 118 10;
+    --peligro: 201 46 46;
+
+    --sombra: 100 110 130;
+    --velo: 15 20 28; /* scrim más suave para tema claro */
+  }
+
+  * {
+    border-color: rgb(var(--borde));
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: rgb(var(--superficie));
+    color: rgb(var(--texto));
+    /* Textura sutil de carbono / halo de acento — todo por token */
+    background-image:
+      radial-gradient(circle at 15% -5%, rgb(var(--acento) / 0.07), transparent 42%),
+      radial-gradient(circle at 105% 110%, rgb(var(--texto-suave) / 0.05), transparent 46%);
+    background-attachment: fixed;
+    /* Transición suave al cambiar de tema o de giro */
+    transition:
+      background-color 0.4s ease,
+      color 0.4s ease;
+  }
 }
 
-html {
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+/* Todo lo que use el acento transiciona suave cuando --acento se reasigna */
+@layer base {
+  :root {
+    --transicion-acento: 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
-body {
-  background-color: #12151A;
-  color: #C3C9D2;
-  /* Textura sutil de carbono sobre el grafito profundo */
-  background-image:
-    radial-gradient(circle at 20% 0%, rgba(255, 138, 43, 0.06), transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(139, 149, 165, 0.05), transparent 45%);
-  background-attachment: fixed;
-}
-
-/* Scrollbar en tono grafito para no romper el tema oscuro premium */
+/* Scrollbar tokenizada */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #12151A;
+  background: rgb(var(--superficie));
 }
 ::-webkit-scrollbar-thumb {
-  background: #272D37;
+  background: rgb(var(--superficie-alta));
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #FF8A2B;
+  background: rgb(var(--acento));
+}
+
+/* Respeta reduce-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
