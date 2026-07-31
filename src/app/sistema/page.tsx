@@ -12,6 +12,7 @@ export default async function SistemaPage() {
       usuario={{
         nombre: sesion.user.email ?? 'Súper-admin',
         rol: ETIQUETA_ROL.superadmin,
+        rolId: 'superadmin',
         esSuperadmin: true,
       }}
     />

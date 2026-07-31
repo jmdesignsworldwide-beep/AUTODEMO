@@ -14,6 +14,7 @@ import { cerrarSesion } from '@/app/login/acciones'
 export interface UsuarioShell {
   nombre: string
   rol: string
+  rolId?: string
   esSuperadmin?: boolean
 }
 
@@ -74,8 +75,9 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const [drawer, setDrawer] = React.useState(false)
-  // /sistema es solo para súper-admin: se oculta del menú a los demás.
-  const items = NAV.filter((i) => i.href !== '/sistema' || usuario?.esSuperadmin)
+  // Enlaces restringidos por rol se ocultan a quien no corresponde (la muralla
+  // real es requireRol en cada ruta; esto es solo el menú).
+  const items = NAV.filter((i) => !i.roles || (usuario?.rolId ? i.roles.includes(usuario.rolId) : false))
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">

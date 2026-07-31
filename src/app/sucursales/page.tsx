@@ -31,6 +31,7 @@ export default async function PaginaSucursales() {
       usuario={{
         nombre: sesion.user.email ?? 'Usuario',
         rol: sesion.rol ? ETIQUETA_ROL[sesion.rol] : '—',
+        rolId: sesion.rol ?? undefined,
         esSuperadmin: sesion.rol === 'superadmin',
       }}
     >

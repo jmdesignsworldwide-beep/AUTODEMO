@@ -3,7 +3,8 @@ import { Car } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { sesionActual } from '@/lib/auth'
-import { FormularioLogin } from './formulario'
+import { estadoDispositivo } from './pin-acciones'
+import { Acceso } from './acceso'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,9 @@ export default async function Login() {
   // Si ya hay sesión válida, no mostrar el login.
   const s = await sesionActual()
   if (s?.vigente) redirect('/panel')
+
+  // El PIN solo aparece si ESTE dispositivo fue autorizado.
+  const { autorizado, usuarios } = await estadoDispositivo()
 
   return (
     <main className="relative flex min-h-screen items-center justify-center px-6">
@@ -35,7 +39,7 @@ export default async function Login() {
 
         <Card>
           <CardContent className="pt-6">
-            <FormularioLogin />
+            <Acceso dispositivoAutorizado={autorizado} usuarios={usuarios} />
           </CardContent>
         </Card>
 
