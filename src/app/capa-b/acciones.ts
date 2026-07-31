@@ -3,25 +3,33 @@
 import crypto from 'crypto'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { createClient } from '@supabase/supabase-js'
 import { sesionActual } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { SUPABASE_URL, getServiceRoleKey } from '@/lib/env'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/env'
 
-// Revoca TODAS las sesiones (refresh tokens) de un usuario vía GoTrue admin.
-// Con esto, la revocación no depende de que expire el token: al siguiente
-// refresco el cliente queda fuera, y el middleware ya lo cortó al instante.
+// Revoca TODAS las sesiones (refresh tokens) de un usuario.
+// GoTrue no expone un "logout por id"; solo signOut(jwt, 'global'). Para obtener
+// un jwt del usuario SIN iniciarle sesión al súper-admin, se usa un cliente
+// PELADO (sin adaptador de cookies): generateLink + verifyOtp devuelven la
+// sesión en memoria sin escribir ninguna cookie del request; ese jwt se usa para
+// signOut scope 'global', que mata todos los refresh tokens del usuario. Así la
+// sesión revocada no puede renovarse; el middleware ya la cortó al instante.
 async function cerrarSesionesGlobal(userId: string): Promise<void> {
   try {
-    const key = getServiceRoleKey()
-    await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}/logout`, {
-      method: 'POST',
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ scope: 'global' }),
+    const admin = supabaseAdmin()
+    const { data: u } = await admin.auth.admin.getUserById(userId)
+    const email = u.user?.email
+    if (!email) return
+    const { data: link } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
+    const hashed = link?.properties?.hashed_token
+    if (!hashed) return
+    const pelado = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
     })
+    const { data: v } = await pelado.auth.verifyOtp({ token_hash: hashed, type: 'email' })
+    const jwt = v?.session?.access_token
+    if (jwt) await admin.auth.admin.signOut(jwt, 'global')
   } catch {
     // Best-effort: la revocación instantánea del middleware NO depende de esto.
   }
