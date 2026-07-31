@@ -35,7 +35,7 @@ const config: Config = {
         },
         acento: {
           DEFAULT: tokenColor('acento'),
-          contraste: tokenColor('acento-contraste'),
+          texto: tokenColor('acento-texto'),
         },
         exito: tokenColor('exito'),
         alerta: tokenColor('alerta'),

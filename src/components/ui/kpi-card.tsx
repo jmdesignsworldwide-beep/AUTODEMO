@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { motion, useInView } from 'framer-motion'
+import { motion, useInView, useReducedMotion } from 'framer-motion'
 import type { LucideIcon } from 'lucide-react'
 import { cn, numeroDO, porcentajeDO } from '@/lib/utils'
 import { Badge } from './badge'
@@ -58,7 +58,10 @@ export function KpiCard({
 }) {
   const ref = React.useRef<HTMLDivElement>(null)
   const enVista = useInView(ref, { once: true, margin: '-40px' })
-  const animado = useContador(valor, enVista)
+  const reducir = useReducedMotion()
+  const animado = useContador(valor, enVista && !reducir)
+  // Con reduce-motion, el número salta directo al valor final (sin conteo).
+  const mostrado = reducir ? valor : animado
 
   return (
     <motion.div
@@ -80,7 +83,7 @@ export function KpiCard({
 
       <div className="mt-3 flex items-end gap-2">
         <span className="text-2xl font-black tracking-tight text-texto tabular-nums sm:text-3xl">
-          {formatear(animado, formato)}
+          {formatear(mostrado, formato)}
         </span>
         {urgente && (
           <Badge tono="peligro" late className="mb-1.5">

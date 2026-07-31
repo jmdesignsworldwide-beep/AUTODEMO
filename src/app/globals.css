@@ -9,7 +9,7 @@
    ("R G B") para que Tailwind pueda aplicar opacidad: rgb(var(--x) / alpha).
 
    --acento es REASIGNABLE EN RUNTIME. Cuando cambia el giro activo, el
-   GiroProvider reescribe --acento (y --acento-contraste) sobre :root, y
+   GiroProvider reescribe --acento (y --acento-texto) sobre :root, y
    TODO el sistema muda de color al instante, sin tocar un solo componente.
    Esto es lo que hace posible la Tanda 6 (la pantalla de venta).
    ============================================================================ */
@@ -28,7 +28,9 @@
 
     /* Acento maestro = ámbar incandescente. Reasignable por giro. */
     --acento: 255 138 43; /* #FF8A2B */
-    --acento-contraste: 18 21 26; /* texto legible SOBRE el acento */
+    /* Texto SOBRE el acento — calculado por luminancia (ver giros.ts).
+       Para el ámbar maestro gana el casi-negro. El GiroProvider lo reasigna. */
+    --acento-texto: 17 20 26;
 
     --exito: 52 199 123;
     --alerta: 255 176 32;
@@ -51,7 +53,7 @@
     --texto-tenue: 130 139 153;
 
     --acento: 224 112 22; /* ámbar levemente más profundo: contraste AA en claro */
-    --acento-contraste: 255 255 255;
+    --acento-texto: 255 255 255;
 
     --exito: 20 145 88;
     --alerta: 183 118 10;

@@ -9,6 +9,12 @@ import {
   SunMedium,
   PaintBucket,
   Package,
+  Wind,
+  Radio,
+  Zap,
+  Truck,
+  ClipboardCheck,
+  Bike,
   type LucideIcon,
 } from 'lucide-react'
 import { useGiro } from '@/components/providers/giro-provider'
@@ -23,6 +29,12 @@ const ICONOS: Record<string, LucideIcon> = {
   SunMedium,
   PaintBucket,
   Package,
+  Wind,
+  Radio,
+  Zap,
+  Truck,
+  ClipboardCheck,
+  Bike,
 }
 
 /**

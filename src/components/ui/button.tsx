@@ -10,7 +10,7 @@ const botonVariantes = cva(
     variants: {
       variant: {
         primario:
-          'bg-acento text-acento-contraste hover:brightness-110 shadow-[0_6px_22px_-6px_rgb(var(--acento)/0.55)]',
+          'bg-acento text-acento-texto hover:brightness-110 shadow-[0_6px_22px_-6px_rgb(var(--acento)/0.55)]',
         secundario: 'bg-superficie-alta text-texto border border-borde hover:bg-superficie-elevada',
         fantasma: 'text-texto-suave hover:bg-superficie-alta hover:text-texto',
         contorno: 'border border-borde text-texto hover:border-acento/60 hover:text-acento',

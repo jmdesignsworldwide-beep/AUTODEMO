@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Car, ArrowRight, ShieldCheck } from 'lucide-react'
@@ -7,6 +9,23 @@ import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 export default function Bienvenida() {
+  const router = useRouter()
+  const [listo, setListo] = useState(false)
+
+  // Cinematográfica UNA VEZ por sesión. Si ya se vio, se va directo al panorama.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('jm-bienvenida-vista')) {
+        router.replace('/panel')
+        return
+      }
+      sessionStorage.setItem('jm-bienvenida-vista', '1')
+    } catch {}
+    setListo(true)
+  }, [router])
+
+  if (!listo) return <div className="min-h-screen" aria-hidden />
+
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6">
       <div className="absolute right-4 top-4">

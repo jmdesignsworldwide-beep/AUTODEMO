@@ -12,7 +12,7 @@ interface GiroCtx {
 const Ctx = createContext<GiroCtx | null>(null)
 
 /**
- * Reescribe --acento y --acento-contraste sobre :root en RUNTIME.
+ * Reescribe --acento y --acento-texto sobre :root en RUNTIME.
  * Como es un estilo inline en documentElement, gana sobre las reglas del
  * stylesheet (incluido el tema claro/oscuro): el acento del giro persiste
  * aunque se cambie de tema. Ningún componente se entera — todos consumen
@@ -21,7 +21,8 @@ const Ctx = createContext<GiroCtx | null>(null)
 function aplicarAcento(g: Giro) {
   const root = document.documentElement
   root.style.setProperty('--acento', g.acento)
-  root.style.setProperty('--acento-contraste', g.acentoContraste)
+  // --acento-texto calculado por luminancia (ver giros.ts): siempre legible.
+  root.style.setProperty('--acento-texto', g.acentoTexto)
 }
 
 export function GiroProvider({ children }: { children: React.ReactNode }) {

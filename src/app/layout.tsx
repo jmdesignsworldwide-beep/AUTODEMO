@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { GiroProvider } from '@/components/providers/giro-provider'
+import { MotionProvider } from '@/components/providers/motion-provider'
 import { ToastProvider } from '@/components/ui/toast'
 import { GIROS_ACENTO } from '@/lib/giros'
 
@@ -30,7 +31,7 @@ const scriptAntiParpadeo = `
     var g = localStorage.getItem('jm-giro');
     if (g && acentos[g]) {
       document.documentElement.style.setProperty('--acento', acentos[g][0]);
-      document.documentElement.style.setProperty('--acento-contraste', acentos[g][1]);
+      document.documentElement.style.setProperty('--acento-texto', acentos[g][1]);
     }
   } catch (e) {}
 })();
@@ -45,7 +46,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased">
         <ThemeProvider>
           <GiroProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <MotionProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </MotionProvider>
           </GiroProvider>
         </ThemeProvider>
       </body>
