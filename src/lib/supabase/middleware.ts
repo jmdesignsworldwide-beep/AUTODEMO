@@ -43,11 +43,31 @@ export async function actualizarSesion(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    const vence = session?.access_token ? decodificarVence(session.access_token) : null
-    const vencida = vence !== null && vence <= Date.now()
+    // REVOCACIÓN INSTANTÁNEA — se consulta la vigencia contra la BASE en cada
+    // navegación (mi_estado_vigencia, SECURITY DEFINER, solo del propio usuario).
+    // Así, revocar una cuenta en Capa B corta al instante sin esperar a que el
+    // token se refresque. La 2ª muralla sigue siendo el RLS (jwt_vigente).
+    let vigente: boolean | null = null
+    try {
+      const { data, error } = await supabase.rpc('mi_estado_vigencia')
+      if (!error && typeof data === 'boolean') vigente = data
+    } catch {
+      vigente = null
+    }
+
+    // Si la RPC no pudo responder (hipo de red/BD), NO se brickea la navegación:
+    // se cae al claim del JWT como respaldo. El RLS protege los datos igual.
+    let vencida: boolean
+    if (vigente !== null) {
+      vencida = !vigente
+    } else {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const vence = session?.access_token ? decodificarVence(session.access_token) : null
+      vencida = vence !== null && vence <= Date.now()
+    }
+
     const ruta = request.nextUrl.pathname
     const esLibre = RUTAS_LIBRES.includes(ruta)
 

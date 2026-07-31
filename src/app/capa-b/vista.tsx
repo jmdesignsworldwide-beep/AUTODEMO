@@ -31,6 +31,18 @@ export interface DispositivoItem {
   etiqueta: string
   activo: boolean
   lastSeen: string | null
+  renovadoAt: string | null
+}
+
+const DIAS_VIGENCIA_DISPOSITIVO = 90
+
+function vencimientoDispositivo(renovadoAt: string | null): { txt: string; tono: 'exito' | 'alerta' | 'peligro' | 'neutro' } {
+  if (!renovadoAt) return { txt: 'Sin datos', tono: 'neutro' }
+  const venceMs = new Date(renovadoAt).getTime() + DIAS_VIGENCIA_DISPOSITIVO * 86400000
+  const restanMs = venceMs - Date.now()
+  if (restanMs <= 0) return { txt: 'Vencido — re-autorizar', tono: 'peligro' }
+  const dias = Math.ceil(restanMs / 86400000)
+  return { txt: `Vence en ${dias} día${dias === 1 ? '' : 's'}`, tono: dias <= 10 ? 'alerta' : 'exito' }
 }
 
 const ETIQUETA_ROL: Record<string, string> = {
@@ -221,16 +233,26 @@ export function CapaBVista({
                       <p className="font-semibold text-texto">{d.etiqueta}</p>
                       <p className="text-xs text-texto-tenue">
                         {d.activo ? 'Activo' : 'Revocado'}
-                        {d.lastSeen ? ` · visto ${fechaDominicana(d.lastSeen)}` : ''}
+                        {d.lastSeen ? ` · visto ${fechaDominicana(d.lastSeen)}` : ' · nunca usado'}
                       </p>
                     </div>
                   </div>
                   {d.activo && (
-                    <form action={revocarDispositivo.bind(null, d.id)}>
-                      <Button type="submit" variant="peligro" size="sm">
-                        Revocar
-                      </Button>
-                    </form>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const v = vencimientoDispositivo(d.renovadoAt)
+                        return (
+                          <Badge tono={v.tono}>
+                            <Clock className="h-3 w-3" /> {v.txt}
+                          </Badge>
+                        )
+                      })()}
+                      <form action={revocarDispositivo.bind(null, d.id)}>
+                        <Button type="submit" variant="peligro" size="sm">
+                          Revocar
+                        </Button>
+                      </form>
+                    </div>
                   )}
                 </li>
               ))}

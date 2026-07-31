@@ -12,7 +12,7 @@ export default async function CapaBPage() {
     admin.from('cuenta_demo').select('id, user_id, etiqueta, vence_at, activa, created_at').order('created_at', { ascending: false }),
     admin.from('perfil').select('id, nombre, rol'),
     admin.auth.admin.listUsers(),
-    admin.from('dispositivo').select('id, etiqueta, sucursal_id, activo, last_seen, created_at').order('created_at', { ascending: false }),
+    admin.from('dispositivo').select('id, etiqueta, sucursal_id, activo, last_seen, renovado_at, created_at').order('created_at', { ascending: false }),
   ])
 
   const emailPorId = new Map((usuarios?.users ?? []).map((u) => [u.id, u.email ?? '']))
@@ -35,6 +35,7 @@ export default async function CapaBPage() {
     etiqueta: d.etiqueta ?? 'Terminal',
     activo: d.activo,
     lastSeen: d.last_seen,
+    renovadoAt: d.renovado_at,
   }))
 
   return (

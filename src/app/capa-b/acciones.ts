@@ -5,6 +5,27 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { sesionActual } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { SUPABASE_URL, getServiceRoleKey } from '@/lib/env'
+
+// Revoca TODAS las sesiones (refresh tokens) de un usuario vía GoTrue admin.
+// Con esto, la revocación no depende de que expire el token: al siguiente
+// refresco el cliente queda fuera, y el middleware ya lo cortó al instante.
+async function cerrarSesionesGlobal(userId: string): Promise<void> {
+  try {
+    const key = getServiceRoleKey()
+    await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}/logout`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ scope: 'global' }),
+    })
+  } catch {
+    // Best-effort: la revocación instantánea del middleware NO depende de esto.
+  }
+}
 
 // Capa B = súper-admin. Estas acciones usan service_role (tarea administrativa
 // legítima, ver docs/PATRON-DE-ACCESO.md) pero SIEMPRE tras confirmar el rol.
@@ -85,11 +106,16 @@ export async function extenderVigencia(id: string, dias: number): Promise<void> 
 export async function revocarCuentaDemo(id: string): Promise<void> {
   if (!(await exigirSuperadmin())) return
   const admin = supabaseAdmin()
-  // Vence al instante (muere sola por RLS/middleware).
-  await admin
+  // 1) Vence al instante (el middleware lo corta en la próxima navegación por
+  //    mi_estado_vigencia; el RLS es la 2ª muralla).
+  const { data: c } = await admin
     .from('cuenta_demo')
     .update({ vence_at: new Date().toISOString(), activa: false })
     .eq('id', id)
+    .select('user_id')
+    .maybeSingle()
+  // 2) Mata todos los refresh tokens: la sesión no puede renovarse.
+  if (c?.user_id) await cerrarSesionesGlobal(c.user_id)
   revalidatePath('/capa-b')
 }
 
