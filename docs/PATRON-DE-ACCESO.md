@@ -161,6 +161,36 @@ quede muda sin que nos enteremos.
 
 ---
 
+## 🚫 Prohibidos los permisos en bloque (regla permanente)
+
+Una migración de la Tanda 3 destapó que casi todas las tablas de negocio
+arrastraban el `GRANT ALL` que Supabase da por defecto a `anon`/`authenticated`
+al crear una tabla. La RLS bloqueaba las filas, pero el privilegio de tabla
+estaba abierto de más — y `TRUNCATE` **no pasa por RLS**. El riesgo de fondo no
+es solo ese: es que un permiso en bloque **barre lo que ya existía sin avisar**.
+
+**La regla, sin excepción:**
+
+- **Nunca** `GRANT ... ON ALL TABLES IN SCHEMA public`.
+- **Nunca** `ALTER DEFAULT PRIVILEGES` sin acotar.
+- **Nunca** un `GRANT` a `anon` o `authenticated` sobre un esquema completo.
+- Todo `GRANT`/`REVOKE` es **explícito, tabla por tabla y rol por rol**, y solo
+  sobre las tablas que **esa** migración está creando.
+- **Ninguna migración puede modificar los permisos de tablas creadas en tandas
+  anteriores.** Si hace falta endurecerlos, se hace en una **migración aparte,
+  declarada y justificada** (ejemplo: `0004_endurecimiento_grants.sql`).
+
+> Un `foreach` sobre una **lista explícita y enumerada** de tablas SÍ está
+> permitido — nombra cada tabla, no es `ON ALL TABLES`.
+
+**Recurrencia:** como Supabase seguirá haciendo `GRANT ALL` por defecto al crear
+cada tabla nueva, el checklist de abajo exige **revocar `anon` explícitamente en
+la migración que crea la tabla** (y quitar a `authenticated` lo que no pasa por
+RLS: `TRUNCATE`/`TRIGGER`/`REFERENCES`). No se combate con un default-privilege
+global — se combate tabla por tabla, donde se ve.
+
+---
+
 ## Excepción explícita y TEMPORAL de la Tanda 0
 
 En la **Tanda 0 no existe autenticación** todavía (llega en la Tanda 2). Por eso,

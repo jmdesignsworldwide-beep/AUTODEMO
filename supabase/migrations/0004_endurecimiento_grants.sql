@@ -23,8 +23,15 @@
 -- A) extensión fuera de public
 alter extension btree_gist set schema extensions;
 
--- B) mínimo privilegio en todas las tablas de negocio con el over-grant.
---    (audit_log y sucursal ya estaban limpias; no se tocan.)
+-- B) mínimo privilegio, TABLA POR TABLA y ROL POR ROL (nada en bloque).
+--    El `foreach` recorre una LISTA EXPLÍCITA y ENUMERADA — no es `ON ALL TABLES`
+--    ni `ALTER DEFAULT PRIVILEGES`. Cada revoke nombra su tabla. Es una migración
+--    APARTE, declarada y justificada, cuyo único fin es endurecer estos permisos
+--    (por eso sí puede tocar tablas de tandas previas; ver la regla en
+--    docs/PATRON-DE-ACCESO.md). audit_log y sucursal ya estaban limpias.
+--    NOTA: la recurrencia (Supabase hace GRANT ALL por defecto al crear tablas)
+--    NO se ataca con un ALTER DEFAULT PRIVILEGES sin acotar (prohibido) — se ataca
+--    con el checklist: cada tabla nueva revoca `anon` explícitamente en SU migración.
 do $$
 declare t text;
 begin
@@ -37,11 +44,6 @@ begin
     execute format('revoke truncate, references, trigger on public.%I from authenticated;', t);
   end loop;
 end $$;
-
--- Que no vuelva a pasar: retirar el GRANT ALL por defecto a anon en public.
--- (Best-effort: aplica a las tablas que cree este rol de aquí en adelante; el
---  checklist de PATRON-DE-ACCESO.md exige revocar anon en cada tabla nueva igual.)
-alter default privileges in schema public revoke all on tables from anon;
 
 -- registro
 insert into supabase_migrations.schema_migrations (version, name) values
