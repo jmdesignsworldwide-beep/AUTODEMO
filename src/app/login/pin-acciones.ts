@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { supabaseServidor } from '@/lib/supabase/server'
 import { hashToken, tokenDispositivoActual } from '@/lib/dispositivo'
+import { ROLES_PIN } from '@/lib/roles'
 
 export interface UsuarioPin {
   id: string
@@ -34,6 +35,7 @@ export async function estadoDispositivo(): Promise<{ autorizado: boolean; usuari
     .from('perfil')
     .select('id, nombre, rol')
     .eq('sucursal_id', disp.sucursal_id)
+    .in('rol', ROLES_PIN as unknown as string[]) // nunca dueño/gerente/superadmin
     .not('pin_hash', 'is', null)
     .is('deleted_at', null)
     .eq('activo', true)
@@ -56,7 +58,17 @@ export async function entrarConPin(_prev: ResultadoPin, formData: FormData): Pro
 
   const admin = supabaseAdmin()
 
-  // Verificación server-side con doble throttle (dispositivo + usuario).
+  // CANDADO DE PRIVILEGIOS (server-side, en el endpoint que emite la sesión):
+  // aunque llamen directo con el id de un Dueño/Gerente/súper-admin, se rechaza
+  // ANTES de verificar el PIN. El PIN nunca abre esas cuentas.
+  const { data: perfil } = await admin.from('perfil').select('rol').eq('id', userId).maybeSingle()
+  if (!perfil || !ROLES_PIN.includes(perfil.rol as (typeof ROLES_PIN)[number])) {
+    return { ok: false, error: 'Este usuario entra solo con contraseña, no con PIN.' }
+  }
+
+  // Verificación server-side con doble throttle (dispositivo + usuario). La RPC
+  // valida el token del dispositivo contra el HASH en la base en CADA llamada
+  // (no basta con que la cookie exista): busca `dispositivo` por device_hash y activo.
   const { data: r, error } = await admin.rpc('verificar_pin', {
     p_device: hashToken(token),
     p_user: userId,
