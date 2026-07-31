@@ -15,3 +15,21 @@ export function fechaDominicana(valor: string | Date): string {
   const min = String(fecha.getMinutes()).padStart(2, '0')
   return `${dd}/${mm}/${aaaa} ${hh}:${min}`
 }
+
+const nf2 = new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const nf0 = new Intl.NumberFormat('es-DO', { maximumFractionDigits: 0 })
+
+/** RD$ con dos decimales, separador de miles dominicano. */
+export function pesosRD(n: number): string {
+  return `RD$${nf2.format(n)}`
+}
+
+/** Entero con separador de miles. */
+export function numeroDO(n: number): string {
+  return nf0.format(n)
+}
+
+/** Porcentaje con un decimal. */
+export function porcentajeDO(n: number): string {
+  return `${n.toLocaleString('es-DO', { maximumFractionDigits: 1 })}%`
+}

@@ -2,9 +2,10 @@
 
 import { useActionState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, AlertCircle, Plus } from 'lucide-react'
+import { AlertCircle, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input, Label } from '@/components/ui/input'
+import { useToast } from '@/components/ui/toast'
 import { crearSucursal, type ResultadoAccion } from './acciones'
 
 export function FormularioSucursal() {
@@ -13,10 +14,14 @@ export function FormularioSucursal() {
     null,
   )
   const formRef = useRef<HTMLFormElement>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
-    if (estado?.ok) formRef.current?.reset()
-  }, [estado])
+    if (estado?.ok) {
+      formRef.current?.reset()
+      toast({ tono: 'exito', titulo: 'Guardada', mensaje: estado.mensaje })
+    }
+  }, [estado, toast])
 
   return (
     <form ref={formRef} action={accion} className="space-y-4">
@@ -46,23 +51,15 @@ export function FormularioSucursal() {
       </Button>
 
       <AnimatePresence>
-        {estado && (
+        {estado && !estado.ok && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className={
-              estado.ok
-                ? 'flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300'
-                : 'flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300'
-            }
+            className="flex items-center gap-2 rounded-token border border-peligro/30 bg-peligro/10 px-4 py-3 text-sm text-peligro"
           >
-            {estado.ok ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-            ) : (
-              <AlertCircle className="h-4 w-4 shrink-0" />
-            )}
-            {estado.ok ? estado.mensaje : estado.error}
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {estado.error}
           </motion.div>
         )}
       </AnimatePresence>
