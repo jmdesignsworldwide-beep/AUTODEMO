@@ -16,7 +16,7 @@ motor           nombre, descripcion, tipo   — 1.6L, 2.4L (tipo NULL) / 150cc (
 modelo          marca_id, nombre, tipo      — Corolla→automovil · CG 150→motocicleta
 catalogo_vehiculo modelo_id, anio, motor_id(NOT NULL)
                                               — el (modelo,año,motor) que EXISTE
-producto        nombre, es_universal, sucursal_id, deleted_at   (MÍNIMO en T3)
+producto        nombre, es_universal, deleted_at   (MÍNIMO en T3 · GLOBAL, sin sucursal_id)
 compatibilidad  producto_id(FK), modelo_id, anios(int4range), motor_id(NULLABLE)
                                               — LA TABLA QUE DECIDE TODO
 vehiculo        placa, catalogo_vehiculo_id — el carro del cliente; FK al catálogo,
@@ -42,6 +42,30 @@ vehiculo        placa, catalogo_vehiculo_id — el carro del cliente; FK al cat�
    en un documento). Universal = aparece siempre, para cualquier vehículo, sin una
    sola fila de compatibilidad. El buscador hace:
    **(compatibilidad que matchea) ∪ (productos `es_universal`)**.
+
+## 📍 Alcance de `sucursal_id` — NO es universal
+
+`sucursal_id` **no** lo lleva toda tabla. Solo lo llevan las **tablas de
+operación** — lo que ocurre en una sucursal: ventas, caja, órdenes, existencias,
+movimientos, visitas.
+
+Las tablas de **catálogo y referencia** (`marca`, `modelo`, `motor`,
+`catalogo_vehiculo`, `compatibilidad`, `producto`, servicios) son **globales al
+negocio**. Un Corolla 2016 no es distinto en Santiago que en La Vega.
+Duplicarlas por sucursal **multiplica el catálogo, rompe la compatibilidad**
+(cada `producto` duplicado duplica sus filas de `compatibilidad`) y lo hace
+imposible de mantener.
+
+> **Regla para decidir:** si dos sucursales pueden tener un valor **distinto**
+> para lo mismo, lleva `sucursal_id`. Si el valor es el **mismo por definición**,
+> no lo lleva.
+
+Estado tras la revisión: de `marca · motor · modelo · catalogo_vehiculo ·
+compatibilidad · producto`, solo `producto` traía `sucursal_id` (error de
+especificación) — se elimina en `0005_producto_global.sql`. Las otras cinco
+nacieron correctas (globales).
+
+---
 
 ## La consulta central (el corazón del sistema)
 
@@ -98,9 +122,10 @@ Fuentes: DGII (dgii.gov.do), Diario Libre, EHPLUS, Hoy.
 
 ## `producto` — qué tiene HOY y qué debe AGREGAR la Tanda 5
 
-**Hoy (mínimo):** `id, nombre, es_universal, sucursal_id, created_at, created_by,
-deleted_at` + RLS/FORCE con políticas por rol. La FK de `compatibilidad.producto_id`
-ya nace correcta contra esta tabla (no pendiente).
+**Hoy (mínimo):** `id, nombre, es_universal, created_at, created_by, deleted_at`
++ RLS/FORCE con políticas por rol. **GLOBAL — sin `sucursal_id`** (ver la regla de
+alcance abajo; corregido en `0005_producto_global.sql`). La FK de
+`compatibilidad.producto_id` ya nace correcta contra esta tabla (no pendiente).
 
 **La Tanda 5 debe AGREGAR con `ALTER TABLE producto` (arranca sabiendo esto):**
 - `costo` (numeric) — costo de compra.
