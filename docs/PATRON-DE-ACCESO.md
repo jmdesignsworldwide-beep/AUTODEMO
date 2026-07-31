@@ -6,6 +6,26 @@
 
 ---
 
+## 🚨 Lo primero de todo — el RLS es la ÚNICA muralla, no una capa adicional
+
+Supabase concede permisos a `anon` y `authenticated` sobre **toda tabla nueva
+del esquema `public`, por defecto** — sin que nadie lo pida. Y `anon` es la
+**llave pública**: viaja en el navegador de cualquiera que abra la aplicación.
+
+Por lo tanto, el **RLS no es una capa adicional de seguridad: es la ÚNICA.** Una
+tabla sin RLS en `public` está **abierta al mundo desde el instante en que se
+crea**, y la aplicación se ve perfectamente normal — no se nota mirando la app.
+
+- **RLS + FORCE se activan en la MISMA migración que crea la tabla.** Sin
+  excepción, en ninguna tanda, por ningún motivo.
+- Además, **se revocan los permisos que la tabla no necesite de verdad** (empezando
+  por `anon`, y por `TRUNCATE`/`TRIGGER`/`REFERENCES` de `authenticated`, que no
+  pasan por RLS) — defensa en profundidad **sobre** el RLS, nunca **en lugar** del RLS.
+- En el **reporte de cierre de cada tanda** va una línea por cada tabla nueva
+  confirmando **RLS + FORCE** activos.
+
+---
+
 ## ⛔ Regla permanente — `user_metadata` es campo del atacante
 
 `user_metadata` es un campo **controlado por el usuario**. Cualquiera puede
