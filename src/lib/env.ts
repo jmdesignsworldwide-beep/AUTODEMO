@@ -10,15 +10,15 @@ export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
 /**
  * Devuelve la service_role SOLO en el servidor.
- * Si por error se importa en el cliente, `process.env.SUPABASE_SERVICE_ROLE`
+ * Si por error se importa en el cliente, `process.env.SUPABASE_SERVICE_ROLE_KEY`
  * es undefined en el bundle del navegador (no lleva NEXT_PUBLIC_), así que
  * nunca se filtra. Además marcamos el módulo consumidor con 'server-only'.
  */
 export function getServiceRoleKey(): string {
-  const key = process.env.SUPABASE_SERVICE_ROLE
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!key) {
     throw new Error(
-      'SUPABASE_SERVICE_ROLE no está configurada en el servidor. ' +
+      'SUPABASE_SERVICE_ROLE_KEY no está configurada en el servidor. ' +
         'Debe montarse en Vercel marcada como Sensitive — nunca con prefijo NEXT_PUBLIC_.',
     )
   }

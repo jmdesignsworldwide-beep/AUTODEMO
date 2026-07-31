@@ -33,7 +33,7 @@ Ver `.env.example`. Copiar a `.env.local` (nunca se sube al repo).
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Pública |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Pública (protegida por RLS) |
-| `SUPABASE_SERVICE_ROLE` | **Secreta — solo servidor** |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secreta — solo servidor** |
 
 ## Desarrollo
 

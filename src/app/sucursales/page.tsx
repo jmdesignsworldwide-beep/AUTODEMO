@@ -53,7 +53,7 @@ export default async function PaginaSucursales() {
               <p className="mt-1 text-titanio">
                 Faltan <code className="text-ambar">NEXT_PUBLIC_SUPABASE_URL</code>,{' '}
                 <code className="text-ambar">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> y la{' '}
-                <code className="text-ambar">SUPABASE_SERVICE_ROLE</code> (esta última solo en el
+                <code className="text-ambar">SUPABASE_SERVICE_ROLE_KEY</code> (esta última solo en el
                 servidor, marcada como Sensitive). Al montarlas, esta pantalla queda viva.
               </p>
             </div>
