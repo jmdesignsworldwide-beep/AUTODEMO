@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:mw": "node scripts/smoke-middleware.mjs"
   },
   "overrides": {
     "postcss": "$postcss",

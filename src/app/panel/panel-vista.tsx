@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Building2, Palette, ArrowRight, Database } from 'lucide-react'
-import { AppShell } from '@/components/shell/app-shell'
+import { AppShell, type UsuarioShell } from '@/components/shell/app-shell'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { KpiCard } from '@/components/ui/kpi-card'
@@ -17,13 +17,15 @@ export function PanelVista({
   sucursales,
   configurado,
   error,
+  usuario,
 }: {
   sucursales: Sucursal[]
   configurado: boolean
   error: string | null
+  usuario: UsuarioShell
 }) {
   return (
-    <AppShell titulo="Panorama">
+    <AppShell titulo="Panorama" usuario={usuario}>
       <div className="mx-auto max-w-4xl space-y-8">
         <div>
           <h2 className="text-2xl font-bold text-texto">Buen día 👋</h2>

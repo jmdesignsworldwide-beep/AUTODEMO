@@ -4,11 +4,19 @@ import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Car, Menu, X } from 'lucide-react'
+import { Car, Menu, X, LogOut, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV } from './navegacion'
 import { GiroSwitcher } from '@/components/ui/giro-switcher'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { cerrarSesion } from '@/app/login/acciones'
+
+export interface UsuarioShell {
+  nombre: string
+  rol: string
+  rolId?: string
+  esSuperadmin?: boolean
+}
 
 function Marca({ onClick }: { onClick?: () => void }) {
   return (
@@ -23,11 +31,11 @@ function Marca({ onClick }: { onClick?: () => void }) {
   )
 }
 
-function Enlaces({ onNavegar }: { onNavegar?: () => void }) {
+function Enlaces({ items, onNavegar }: { items: typeof NAV; onNavegar?: () => void }) {
   const ruta = usePathname()
   return (
     <nav className="flex flex-col gap-1">
-      {NAV.map((item) => {
+      {items.map((item) => {
         const activo = ruta === item.href || ruta.startsWith(item.href + '/')
         const Icono = item.icono
         return (
@@ -59,12 +67,17 @@ function Enlaces({ onNavegar }: { onNavegar?: () => void }) {
 
 export function AppShell({
   titulo,
+  usuario,
   children,
 }: {
   titulo: string
+  usuario?: UsuarioShell
   children: React.ReactNode
 }) {
   const [drawer, setDrawer] = React.useState(false)
+  // Enlaces restringidos por rol se ocultan a quien no corresponde (la muralla
+  // real es requireRol en cada ruta; esto es solo el menú).
+  const items = NAV.filter((i) => !i.roles || (usuario?.rolId ? i.roles.includes(usuario.rolId) : false))
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
@@ -72,7 +85,7 @@ export function AppShell({
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-borde bg-superficie-elevada/50 p-5 lg:flex">
         <Marca />
         <div className="mt-8 flex-1">
-          <Enlaces />
+          <Enlaces items={items} />
         </div>
         <div className="border-t border-borde pt-4 text-xs text-texto-tenue">
           Tanda 1 · Sistema de diseño
@@ -108,7 +121,7 @@ export function AppShell({
                 </button>
               </div>
               <div className="mt-8 flex-1">
-                <Enlaces onNavegar={() => setDrawer(false)} />
+                <Enlaces items={items} onNavegar={() => setDrawer(false)} />
               </div>
             </motion.aside>
           </>
@@ -127,7 +140,28 @@ export function AppShell({
               <span className="sr-only">Abrir menú</span>
             </button>
             <h1 className="flex-1 truncate text-lg font-bold text-texto">{titulo}</h1>
+            {usuario && (
+              <div className="hidden items-center gap-2 rounded-token border border-borde px-3 py-1.5 sm:flex">
+                <UserRound className="h-4 w-4 text-acento" />
+                <div className="leading-tight">
+                  <p className="text-xs font-semibold text-texto">{usuario.nombre}</p>
+                  <p className="text-[10px] uppercase tracking-wide text-texto-tenue">{usuario.rol}</p>
+                </div>
+              </div>
+            )}
             <ThemeToggle />
+            {usuario && (
+              <form action={cerrarSesion}>
+                <button
+                  type="submit"
+                  title="Cerrar sesión"
+                  className="flex h-10 w-10 items-center justify-center rounded-token border border-borde text-texto-suave transition-acento hover:border-peligro/60 hover:text-peligro"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="sr-only">Cerrar sesión</span>
+                </button>
+              </form>
+            )}
           </div>
           {/* Conmutador de giros — siempre a la vista para la demo */}
           <div className="border-t border-borde/60 px-4 py-2.5 sm:px-6">

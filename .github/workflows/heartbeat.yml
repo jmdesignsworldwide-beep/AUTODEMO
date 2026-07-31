@@ -1,0 +1,49 @@
+name: Supabase heartbeat
+
+# Un latido de solo-lectura que impide que el proyecto Free de Supabase se
+# pause por inactividad. Corre dos veces por semana (lunes y jueves) y se puede
+# disparar a mano. Usa ÚNICAMENTE la anon key (pública por diseño, protegida por
+# RLS deny-all) leída de los secrets del repo — NUNCA la service_role, y NUNCA
+# una llave escrita en el YAML.
+
+on:
+  schedule:
+    - cron: '17 12 * * 1,4' # lunes y jueves, 12:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: heartbeat
+  cancel-in-progress: false
+
+jobs:
+  latido:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping de solo-lectura al proyecto (anon key)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "Faltan los secrets SUPABASE_URL y/o SUPABASE_ANON_KEY."
+            exit 1
+          fi
+          # Health de GoTrue: request real al proyecto (Kong -> GoTrue, con pool a
+          # la BD) => resetea el reloj de inactividad. Devuelve 200 con la anon
+          # key. No expone datos, no usa privilegio. Las tablas son deny-all para
+          # anon (por diseño), por eso el latido NO consulta una tabla.
+          code=$(curl -sS -o /tmp/body.txt -w '%{http_code}' \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL}/auth/v1/health")
+          echo "HTTP ${code}"
+          echo "Cuerpo: $(cat /tmp/body.txt)"
+          if [ "${code}" != "200" ]; then
+            echo "Latido fallido: se esperaba HTTP 200."
+            exit 1
+          fi
+          echo "Latido OK — el proyecto sigue despierto."
