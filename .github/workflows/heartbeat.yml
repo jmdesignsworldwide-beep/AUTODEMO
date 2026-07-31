@@ -22,7 +22,7 @@ jobs:
   latido:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping de solo-lectura a la API REST (anon key)
+      - name: Ping de solo-lectura al proyecto (anon key)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -32,12 +32,14 @@ jobs:
             echo "Faltan los secrets SUPABASE_URL y/o SUPABASE_ANON_KEY."
             exit 1
           fi
-          # Consulta deny-all: devuelve [] por RLS, pero toca la BD => cuenta como
-          # actividad. No expone datos y no usa privilegio alguno.
+          # Health de GoTrue: request real al proyecto (Kong -> GoTrue, con pool a
+          # la BD) => resetea el reloj de inactividad. Devuelve 200 con la anon
+          # key. No expone datos, no usa privilegio. Las tablas son deny-all para
+          # anon (por diseño), por eso el latido NO consulta una tabla.
           code=$(curl -sS -o /tmp/body.txt -w '%{http_code}' \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/sucursal?select=id&limit=1")
+            "${SUPABASE_URL}/auth/v1/health")
           echo "HTTP ${code}"
           echo "Cuerpo: $(cat /tmp/body.txt)"
           if [ "${code}" != "200" ]; then
