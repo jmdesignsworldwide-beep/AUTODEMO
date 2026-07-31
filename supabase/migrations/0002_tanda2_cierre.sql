@@ -1,14 +1,14 @@
 -- ============================================================================
--- JM AUTO · TANDA 2 · Cierre — arreglo de revocación instantánea + vencimiento
--- de dispositivo. (Los hallazgos del Security Advisor se AGREGAN a este archivo
--- antes de correrlo, para que sea UNA sola migración con un solo PAT.)
+-- JM AUTO · TANDA 2 · Cierre — una sola migración, un solo PAT.
+-- Agrupa: (1) revocación instantánea, (2) vencimiento de dispositivo,
+-- (3) arreglos del Security Advisor (1er pase), (4) registro retroactivo del
+-- historial de migraciones (0000, 0001, 0002).
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1) REVOCACIÓN INSTANTÁNEA — el middleware valida la vigencia contra la BASE,
---    no contra el claim del JWT (que vive hasta 1 hora). jwt_vigente() se queda
---    en el RLS como SEGUNDA muralla. Esta función es la consulta barata por
---    navegación que hace el corte instantáneo.
+-- 1) REVOCACIÓN INSTANTÁNEA — el middleware valida la vigencia contra la BASE
+--    (consulta barata por navegación). jwt_vigente() se queda en el RLS como
+--    SEGUNDA muralla. search_path fijo; EXECUTE revocado de anon y public.
 -- ---------------------------------------------------------------------------
 create or replace function public.mi_estado_vigencia()
 returns boolean
@@ -17,8 +17,6 @@ stable
 security definer
 set search_path = ''
 as $$
-  -- true si el usuario no es cuenta demo, o si su cuenta demo sigue activa y no
-  -- ha vencido. Se evalúa contra now() en cada llamada.
   select coalesce(
     bool_and(c.activa and (c.vence_at is null or c.vence_at > now())),
     true
@@ -30,13 +28,26 @@ revoke execute on function public.mi_estado_vigencia() from public, anon;
 grant  execute on function public.mi_estado_vigencia() to authenticated;
 
 -- ---------------------------------------------------------------------------
--- 2) VENCIMIENTO DEL DISPOSITIVO — 90 días, renovable con un login de contraseña.
---    Se agrega renovado_at; el vencimiento es renovado_at + 90 días. verificar_pin
---    rechaza un dispositivo vencido. (last_seen ya refleja el último uso.)
+-- 2) VENCIMIENTO DEL DISPOSITIVO — 90 días, renovable con login de contraseña.
+--    renovado_at nace = created_at para los ya autorizados.
 -- ---------------------------------------------------------------------------
 alter table public.dispositivo
   add column if not exists renovado_at timestamptz not null default now();
 
+-- ---------------------------------------------------------------------------
+-- 3) ARREGLOS DEL SECURITY ADVISOR (1er pase)
+-- ---------------------------------------------------------------------------
+
+-- 3a) audit_inmutable: search_path fijo (lint function_search_path_mutable).
+create or replace function public.audit_inmutable() returns trigger
+  language plpgsql
+  set search_path = ''
+  as $$ begin raise exception 'audit_log es inmutable'; end; $$;
+
+-- 3b) verificar_pin: SOLO la llama el servidor con service_role (login por PIN
+--     es pre-sesión). Se REVOCA de authenticated (quita el lint de SECURITY
+--     DEFINER ejecutable por usuarios) y se concede solo a service_role.
+--     Además: rechaza dispositivo vencido (>90 días sin renovar).
 create or replace function public.verificar_pin(p_device text, p_user uuid, p_pin text)
 returns jsonb
 language plpgsql
@@ -52,7 +63,6 @@ begin
   if not found then
     return jsonb_build_object('ok', false, 'motivo', 'dispositivo_no_autorizado');
   end if;
-  -- NUEVO: dispositivo vencido (>90 días sin renovar con contraseña).
   if d.renovado_at + interval '90 days' < now() then
     return jsonb_build_object('ok', false, 'motivo', 'dispositivo_vencido');
   end if;
@@ -88,9 +98,71 @@ begin
   end if;
 end;
 $$;
-revoke execute on function public.verificar_pin(text, uuid, text) from public, anon;
-grant  execute on function public.verificar_pin(text, uuid, text) to authenticated;
+revoke execute on function public.verificar_pin(text, uuid, text) from public, anon, authenticated;
+grant  execute on function public.verificar_pin(text, uuid, text) to service_role;
+
+-- 3c) fijar_pin: igual — la llama el servidor con service_role desde una acción
+--     que ya verificó el rol gestor. Se quita el chequeo interno de jwt_rol
+--     (con service_role no hay JWT) y se REVOCA de authenticated.
+create or replace function public.fijar_pin(p_user uuid, p_pin text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_ced text;
+  asc_seq boolean := true;
+  desc_seq boolean := true;
+  i int;
+begin
+  if p_pin !~ '^[0-9]{6,}$' then
+    raise exception 'El PIN debe ser numérico de al menos 6 dígitos';
+  end if;
+  if p_pin ~ '^(.)\1*$' then
+    raise exception 'El PIN no puede ser una repetición';
+  end if;
+  for i in 2 .. length(p_pin) loop
+    if ascii(substr(p_pin,i,1)) - ascii(substr(p_pin,i-1,1)) <> 1  then asc_seq := false;  end if;
+    if ascii(substr(p_pin,i,1)) - ascii(substr(p_pin,i-1,1)) <> -1 then desc_seq := false; end if;
+  end loop;
+  if asc_seq or desc_seq then
+    raise exception 'El PIN no puede ser una secuencia';
+  end if;
+  select replace(replace(cedula,'-',''),' ','') into v_ced from public.perfil where id = p_user;
+  if v_ced is not null and p_pin = v_ced then
+    raise exception 'El PIN no puede ser la cédula';
+  end if;
+
+  update public.perfil
+     set pin_hash = extensions.crypt(p_pin, extensions.gen_salt('bf')),
+         pin_intentos = 0, pin_bloqueado_hasta = null
+   where id = p_user;
+end;
+$$;
+revoke execute on function public.fijar_pin(uuid, text) from public, anon, authenticated;
+grant  execute on function public.fijar_pin(uuid, text) to service_role;
+
+-- Nota: el lint auth_leaked_password_protection (HaveIBeenPwned) NO es SQL —
+-- se activa por config de Auth vía Management API en la misma corrida.
+-- Nota: el lint SECURITY DEFINER de mi_estado_vigencia es ESPERADO y aceptado
+-- (como custom_access_token_hook): search_path fijo, revocado de anon/public,
+-- solo devuelve la vigencia del PROPIO usuario, sin privilegio.
 
 -- ---------------------------------------------------------------------------
--- 3) (SE AGREGA AQUÍ lo que salga del Security Advisor antes de correr.)
+-- 4) REGISTRO RETROACTIVO DEL HISTORIAL DE MIGRACIONES
+--    El ledger no existía (las 0000/0001 se aplicaron por Management API).
+--    Se crea y se insertan 0000, 0001 y 0002 para que el historial quede
+--    completo y ordenado.
 -- ---------------------------------------------------------------------------
+create schema if not exists supabase_migrations;
+create table if not exists supabase_migrations.schema_migrations (
+  version    text not null primary key,
+  statements text[],
+  name       text
+);
+insert into supabase_migrations.schema_migrations (version, name) values
+  ('0000', 'tanda0_sucursal'),
+  ('0001', 'tanda2_auth'),
+  ('0002', 'tanda2_cierre')
+on conflict (version) do nothing;
